@@ -1,7 +1,5 @@
 package main
 
-import
-
 func main() {
-	prototest.Hello()
+	println("NOTHING")
 }
