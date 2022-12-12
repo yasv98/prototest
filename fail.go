@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -30,7 +31,8 @@ func fail(t TestingT, failureMessage string, msgAndArgs ...interface{}) bool {
 		content = append(content, labeledContent{"Messages", message})
 	}
 
-	t.Errorf("\n%s", ""+labeledOutput(content...))
+	// t.Errorf("\n%s", ""+labeledOutput(content...))
+	log.Printf("\n%s", ""+labeledOutput(content...))
 
 	return false
 }
