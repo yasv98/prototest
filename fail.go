@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -12,10 +11,15 @@ import (
 	"unicode/utf8"
 )
 
-// Fail reports a failure through.... TBD
+type labeledContent struct {
+	label   string
+	content string
+}
+
+// fail reports a failure and provides a detailed error message.
 func fail(t TestingT, failureMessage string, msgAndArgs ...interface{}) bool {
 	content := []labeledContent{
-		{"Error Trace", strings.Join(CallerInfo(), "\n\t\t\t")},
+		{"Error Trace", strings.Join(callerInfo(), "\n\t\t\t")},
 		{"Error", failureMessage},
 	}
 
@@ -26,34 +30,42 @@ func fail(t TestingT, failureMessage string, msgAndArgs ...interface{}) bool {
 		content = append(content, labeledContent{"Test", n.Name()})
 	}
 
-	message := messageFromMsgAndArgs(msgAndArgs...)
-	if len(message) > 0 {
-		content = append(content, labeledContent{"Messages", message})
-	}
-
-	// t.Errorf("\n%s", ""+labeledOutput(content...))
-	log.Printf("\n%s", ""+labeledOutput(content...))
+	t.Errorf("\n%s", ""+labeledOutput(content...))
 
 	return false
 }
 
-func messageFromMsgAndArgs(msgAndArgs ...interface{}) string {
-	if len(msgAndArgs) == 0 || msgAndArgs == nil {
-		return ""
-	}
-	if len(msgAndArgs) == 1 {
-		msg := msgAndArgs[0]
-		if msgAsStr, ok := msg.(string); ok {
-			return msgAsStr
+// Taken from 'assertions.go' in the testify module.
+// labeledOutput returns a string consisting of the provided labeledContent. Each labeled output is appended in the following manner:
+//
+// \t{{label}}:{{align_spaces}}\t{{content}}\n
+//
+// The initial carriage return is required to undo/erase any padding added by testing.T.Errorf. The "\t{{label}}:" is for the label.
+// If a label is shorter than the longest label provided, padding spaces are added to make all the labels match in length. Once this
+// alignment is achieved, "\t{{content}}\n" is added for the output.
+//
+// If the content of the labeledOutput contains line breaks, the subsequent lines are aligned so that they start at the same location as the first line.
+func labeledOutput(content ...labeledContent) string {
+	longestLabel := 0
+	for _, v := range content {
+		if len(v.label) > longestLabel {
+			longestLabel = len(v.label)
 		}
-		return fmt.Sprintf("%+v", msg)
 	}
-	if len(msgAndArgs) > 1 {
-		return fmt.Sprintf(msgAndArgs[0].(string), msgAndArgs[1:]...)
+
+	var output string
+	for _, v := range content {
+		output += "\t" + v.label + ":" + strings.Repeat(" ", longestLabel-len(v.label)) + "\t" + indentMessageLines(v.content, longestLabel) + "\n"
 	}
-	return ""
+
+	return output
 }
 
+// Taken from 'assertions.go' in the testify module.
+// Aligns the provided message so that all lines after the first line start at the same location as the first line.
+// Assumes that the first line starts at the correct location (after carriage return, tab, label, spacer and tab).
+// The longestLabelLen parameter specifies the length of the longest label in the output (required becaues this is the
+// basis on which the alignment occurs).
 func indentMessageLines(message string, longestLabelLen int) string {
 	outBuf := new(bytes.Buffer)
 
@@ -63,27 +75,17 @@ func indentMessageLines(message string, longestLabelLen int) string {
 			// append alignLen+1 spaces to align with "{{longestLabel}}:" before adding tab
 			outBuf.WriteString("\n\t" + strings.Repeat(" ", longestLabelLen+1) + "\t")
 		}
+
 		outBuf.WriteString(scanner.Text())
 	}
 
 	return outBuf.String()
 }
 
-func labeledOutput(content ...labeledContent) string {
-	longestLabel := 0
-	for _, v := range content {
-		if len(v.label) > longestLabel {
-			longestLabel = len(v.label)
-		}
-	}
-	var output string
-	for _, v := range content {
-		output += "\t" + v.label + ":" + strings.Repeat(" ", longestLabel-len(v.label)) + "\t" + indentMessageLines(v.content, longestLabel) + "\n"
-	}
-	return output
-}
-
-func CallerInfo() []string {
+// Taken from 'assertions.go' in the testify module.
+// callerInfo returns an array of strings containing the file and line number
+// of each stack frame leading from the current test to the call that failed.
+func callerInfo() []string {
 	var pc uintptr
 	var ok bool
 	var file string
@@ -142,7 +144,7 @@ func CallerInfo() []string {
 	return callers
 }
 
-func isTest(name, prefix string) bool {
+func isTest(name string, prefix string) bool {
 	if !strings.HasPrefix(name, prefix) {
 		return false
 	}
@@ -151,9 +153,4 @@ func isTest(name, prefix string) bool {
 	}
 	r, _ := utf8.DecodeRuneInString(name[len(prefix):])
 	return !unicode.IsLower(r)
-}
-
-type labeledContent struct {
-	label   string
-	content string
 }

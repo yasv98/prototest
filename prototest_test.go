@@ -50,20 +50,30 @@ func TestProtoEqual(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("prototest.ProtoEqual(%v,%v)", c.expected.GetName(), c.actual.GetName()), func(t *testing.T) {
-			res := prototest.ProtoEqual(mockT, c.expected, c.actual)
+			res := prototest.Equal(mockT, c.expected, c.actual)
 			if res != c.result {
 				t.Errorf("prototest.ProtoEqual(%v,%v) should return %v", c.expected.GetName(), c.actual.GetName(), c.result)
 			}
 		})
 	}
 
-	// t.Run("successful_same_proto", func(t *testing.T) {
-	// 	t.Parallel()
-	// 	prototest.ProtoEqual(t, personA, personAClone)
-	// })
+	t.Run("successful_same_proto", func(t *testing.T) {
+		t.Parallel()
+		prototest.Equal(t, personA, personB)
+	})
 
 	// t.Run("failure_detailed_diff_output", func(t *testing.T) {
 	// 	t.Parallel()
-	// 	assert.False(t, prototest.ProtoEqual(t, personA, personB))
+	// 	tt := testT{}
+	// 	prototest.Equal(tt, personA, personB)
+	// 	assert.False(t, tt.fail)
 	// })
 }
+
+// type testT struct {
+// 	fail bool
+// }
+
+// func (t testT) Errorf(format string, args ...interface{}) {
+// 	t.fail = true
+// }
